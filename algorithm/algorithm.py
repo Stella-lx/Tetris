@@ -129,13 +129,6 @@ class Algorithm:
                 logits, values = self.model(batch_states)
                 # 动作的原始分数（未归一化），每个动作对应一个分数 [batch_size, action_dim]，状态价值估计，形状 [batch_size, 1]或 [batch_size]
 
-                # # 检查logits是否包含NaN或Inf
-                # if torch.isnan(logits).any() or torch.isinf(logits).any():
-                #     print(f"警告: 检测到NaN或Inf的logits值")
-                #     print(f"logits: {logits}")
-                #     # 重置logits为小的随机值
-                #     logits = torch.randn_like(logits) * 0.01
-
                 # 创建动作分布
                 dist = torch.distributions.Categorical(logits=logits)
                 # 计算对数概率
@@ -183,11 +176,6 @@ class Algorithm:
                     value_loss = F.mse_loss(values_flat, returns_flat)
                 loss = policy_loss + Config.VF_COEF * value_loss - 0.01 * entropy.mean()
 
-                # # 检查损失是否为NaN
-                # if torch.isnan(loss) or torch.isinf(loss):
-                #     print(f"警告: 检测到NaN或Inf损失值: {loss.item()}")
-                #     print(f"policy_loss: {policy_loss.item()}, value_loss: {value_loss.item()}, entropy: {entropy.mean().item()}")
-                #     continue  # 跳过这个批次的更新
 
                 # 优化步骤
                 # 梯度清零

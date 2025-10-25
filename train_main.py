@@ -49,7 +49,7 @@ def main():
         # 初始化得分
         score = 0 
 
-        print(f" 开始训练 (目标回合数: {agents[0].episodes})...")
+        print(f" 开始训练")
         print("-" * 60)
         
         # 记录训练开始时间

@@ -3,56 +3,34 @@ import time
 import math
 import os
 from collections import namedtuple
-from .plot import plot_and_save_scores, plot_and_save_reward, plot_and_save_loss
+import torch
+from torch.utils.tensorboard import SummaryWriter
+import datetime
 
 # 定义样本数据结构
 Sample = namedtuple('Sample', [
     'obs', 'action', 'reward', 'done', 'value', 'logp'
 ])
 
-def workflow(envs, agents, episodes=10000):
-    # # 如果没有提供logger，创建默认的
-    # if logger is None:
-    #     logger = create_logger("TetrisTraining")
+# 初始化TensorBoard写入器（自动创建时间戳目录）
+timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
+log_dir = f"logs/ppo_tetris_{timestamp}"
+writer = SummaryWriter(log_dir)
 
-    # # 如果没有提供monitor，创建默认的
-    # if monitor is None:
-    #     monitor = create_monitor()
+def workflow(envs, agents, episodes=10000):
+
     try:
-        # # Read and validate configuration file
-        # # 配置文件读取和校验
-        # usr_conf = "agent_diy/conf/train_env_conf.toml", logger
-        # if usr_conf is None:
-        #     logger.error("usr_conf is None, please check agent_diy/conf/train_env_conf.toml")
-        #     return
 
         env, agent = envs[0], agents[0]
         EPISODES = episodes
 
-        # 初始化得分列表，记录训练数据
+        # 初始化列表，记录训练数据
         scores = []
         average_scores = []
         average_100_scores = []
         rewards = []
         avg_rewards = []
 
-        # 训练指标记录 - 按episode记录
-        episode_policy_losses = []
-        episode_value_losses = []
-        episode_entropies = []
-        episode_rnd_losses = []
-        episode_learning_rates = []
-
-        # # Initializing monitoring data
-        # # 监控数据初始化
-        # monitor_data = {
-        #     "reward": 0,
-        #     "diy_1": 0,
-        #     "diy_2": 0,
-        #     "diy_3": 0,
-        #     "diy_4": 0,
-        #     "diy_5": 0,
-        # }
         last_report_monitor_time = time.time()
 
         print("Start Training...")
@@ -71,20 +49,6 @@ def workflow(envs, agents, episodes=10000):
         episode = 0
         while True:
 
-            # # Retrieving training metrics
-            # # 获取训练中的指标
-            # training_metrics = get_training_metrics()
-            # if training_metrics:
-            #     logger.info(f"training_metrics is {training_metrics}")
-
-            # Reset the game and get the initial state
-            # 重置游戏, 并获取初始状态
-            # obs, extra_info = env.reset(usr_conf=usr_conf)
-            # if extra_info["result_code"] != 0:
-            #     logger.error(
-            #         f"env.reset result_code is {extra_info['result_code']}, result_message is {extra_info['result_message']}"
-            #     )
-            #     raise RuntimeError(extra_info["result_message"])
             step_cnt = 0
             state = env.reset()
             episode_reward = 0  # 重置当前episode奖励
@@ -106,8 +70,6 @@ def workflow(envs, agents, episodes=10000):
                 # Interact with the environment, perform actions, and obtain the next state
                 # 与环境交互, 执行动作, 获取下一步的状态
                 next_state, is_done, reward, scoress = env.step(action)
-                # print(state)
-                # print(f"action: {action}")
 
                 # Feature processing
                 # 特征处理
@@ -156,14 +118,15 @@ def workflow(envs, agents, episodes=10000):
             # 训练智能体
             agent.learn(trajectory_buffer)
 
-            # 记录训练后的损失指标 (每个episode记录一次)
-            episode_policy_losses.append(agent.algorithm.policy_loss)
-            episode_value_losses.append(agent.algorithm.value_loss)
-            episode_entropies.append(agent.algorithm.entropy)
-            episode_rnd_losses.append(agent.algorithm.rnd_loss)
-            episode_learning_rates.append(agent.algorithm.lr)
+            # Tensorboard 记录
+            writer.add_scalar('Loss/Policy Loss', agent.algorithm.policy_loss, episode)
+            writer.add_scalar('Loss/Value Loss', agent.algorithm.value_loss, episode)
+            writer.add_scalar('Loss/Entropy', agent.algorithm.entropy, episode)
+            writer.add_scalar('Loss/RND Loss', agent.algorithm.rnd_loss, episode)
+            writer.add_scalar('Learning Rate', agent.algorithm.lr, episode)
+            writer.add_scalar('Loss/Total Loss', agent.algorithm.loss, episode)
 
-            # 记录得分训练数据
+            # 计算得分训练数据
             score = env.score # 更新得分
             scores.append(score)
             average_scores.append(sum(scores) / len(scores))
@@ -171,12 +134,22 @@ def workflow(envs, agents, episodes=10000):
                 average_100_scores.append(sum(scores[-100:]) / 100)
 
             # 记录当前episode的奖励（不是累积奖励）
-            rewards.append(episode_reward)  # 修复：使用episode_reward而不是total_rew
-
+            rewards.append(episode_reward) 
             # 计算平均奖励（基于所有episode的奖励）
             current_avg_reward = sum(rewards) / len(rewards) if len(rewards) > 0 else 0
             avg_rewards.append(current_avg_reward)
 
+            # Tensorboard记录
+            writer.add_scalar('reward/Episode Reward', episode_reward, episode)
+            writer.add_scalar('reward/Average Reward', current_avg_reward, episode)
+            writer.add_scalar('reward/Total Reward', total_rew, episode)
+            writer.add_scalar('Score/Score', score, episode)
+            writer.add_scalar('Score/Average Score', average_scores[-1], episode)
+            if average_100_scores:  # 确保列表不为空
+                writer.add_scalar('Score/Average 100 Score', average_100_scores[-1], episode)
+            else:
+                writer.add_scalar('Score/Average 100 Score', 0, episode)
+            
             # Reporting training progress
             # 上报训练进度
             episode_cnt += 1
@@ -185,8 +158,6 @@ def workflow(envs, agents, episodes=10000):
 
             if is_converged or now - last_report_monitor_time > 60:
                 print(f"Episode {episode + 1}: Avg Reward = {current_avg_reward:.4f}, Episode Reward = {episode_reward:.4f}")
-
-                # 不要重置total_rew和episode_cnt，保持累积统计
                 last_report_monitor_time = now
 
                 # The model has converged, training is complete
@@ -194,13 +165,6 @@ def workflow(envs, agents, episodes=10000):
                 if is_converged:
                     print(f"Training Converged at Episode: {episode + 1}")
                     break
-
-            # 每100个episode绘制一次图表
-            if (episode + 1) % 100 == 0:
-                print(f"生成训练图表 (Episode {episode + 1})")
-                plot_and_save_reward(rewards, avg_rewards)
-                plot_and_save_loss(episode_value_losses, episode_policy_losses, episode_entropies, episode_rnd_losses, episode_learning_rates)
-                plot_and_save_scores(scores, average_scores, average_100_scores)
 
             # Saving the model every 5 minutes
             # 每5分钟保存一次模型
@@ -218,10 +182,8 @@ def workflow(envs, agents, episodes=10000):
         # 保存模型
         agent.save_model()
 
-        # 最终绘制所有图表
-        plot_and_save_scores(scores, average_scores, average_100_scores)
-        plot_and_save_reward(rewards, scores)
-        plot_and_save_loss(episode_value_losses, episode_policy_losses, episode_entropies, episode_rnd_losses, episode_learning_rates)
+        # 训练结束关闭TensorBoard
+        writer.close()
 
     except Exception as e:
         print(f"训练过程中发生错误: {e}")
