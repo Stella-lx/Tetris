@@ -5,7 +5,10 @@ import os
 from collections import namedtuple
 import torch
 from torch.utils.tensorboard import SummaryWriter
-import datetime
+from datetime import datetime
+import logging
+from collections import defaultdict
+
 
 # 定义样本数据结构
 Sample = namedtuple('Sample', [
@@ -13,9 +16,26 @@ Sample = namedtuple('Sample', [
 ])
 
 # 初始化TensorBoard写入器（自动创建时间戳目录）
-timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
+timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
 log_dir = f"logs/ppo_tetris_{timestamp}"
 writer = SummaryWriter(log_dir)
+
+# 创建日志目录
+log_dir = "log"
+if not os.path.exists(log_dir):
+    os.makedirs(log_dir)
+
+# 设置日志格式
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+    handlers=[
+        logging.FileHandler(f"{log_dir}/tetris_{datetime.now().strftime('%Y%m%d_%H%M%S')}.log"),
+        # logging.StreamHandler()  # 同时输出到控制台
+    ]
+)
+
+logger = logging.getLogger("tetris")
 
 def workflow(envs, agents, episodes=10000):
 
@@ -42,9 +62,8 @@ def workflow(envs, agents, episodes=10000):
             0,
             0,
         )
-        episode_reward = 0  # 当前episode的奖励
 
-        max_step = 100
+        max_step = 1000 # 最大步数修改
 
         episode = 0
         while True:
@@ -61,6 +80,10 @@ def workflow(envs, agents, episodes=10000):
             # 任务循环
             done = False
             trajectory_buffer = []
+            clea = 0
+
+            blocks = []
+            locations = []
             while not done:
                 # Agent performs inference to obtain the predicted action for the next frame
                 # Agent 进行推理, 获取下一帧的预测动作
@@ -70,14 +93,22 @@ def workflow(envs, agents, episodes=10000):
                 # Interact with the environment, perform actions, and obtain the next state
                 # 与环境交互, 执行动作, 获取下一步的状态
                 next_state, is_done, reward, scoress = env.step(action)
+                clea += env.cleans
+
+                # logger.info(f"is_hard_drop: {env.hard_drop}, state:{state}, next_state:{next_state}")
 
                 # Feature processing
                 # 特征处理
                 _obs_data = agent.observation_process(env, next_state)
 
                 # 计算奖励 - 结合环境奖励和奖励塑形
-                shaped_reward = reward_shaping(is_done, state, env.is_block_end(env.block), env.cleans)
-                reward = reward + shaped_reward  # 组合环境奖励和塑形奖励
+                if step_cnt == 0 or env.hard_drop or action == 3:
+                    blocks = []
+                    locations = []
+                shaped_reward = reward_shaping(is_done, env.cleans, env.x, env.y, env.block, blocks, locations, is_done)
+                locations.append((env.x, env.y))
+                blocks.append(env.block)
+                reward = shaped_reward + reward # 组合环境奖励和塑形奖励
             
                 # Determine over and update the win count
                 # 判断结束, 并更新胜利次数
@@ -118,13 +149,18 @@ def workflow(envs, agents, episodes=10000):
             # 训练智能体
             agent.learn(trajectory_buffer)
 
+            # log消除行数记录
+            logger.info(f"episode: {episode}, clean_lines: {clea}, reward: {episode_reward}, step_cnt: {step_cnt}")
+
             # Tensorboard 记录
             writer.add_scalar('Loss/Policy Loss', agent.algorithm.policy_loss, episode)
             writer.add_scalar('Loss/Value Loss', agent.algorithm.value_loss, episode)
             writer.add_scalar('Loss/Entropy', agent.algorithm.entropy, episode)
-            writer.add_scalar('Loss/RND Loss', agent.algorithm.rnd_loss, episode)
-            writer.add_scalar('Learning Rate', agent.algorithm.lr, episode)
+            # writer.add_scalar('Loss/RND Loss', agent.algorithm.rnd_loss, episode)
+            writer.add_scalar('index/Learning Rate', agent.algorithm.lr, episode)
             writer.add_scalar('Loss/Total Loss', agent.algorithm.loss, episode)
+            writer.add_scalar('index/Clean Lines', clea, episode)
+            writer.add_scalar('index/step', step_cnt, episode)
 
             # 计算得分训练数据
             score = env.score # 更新得分
@@ -154,7 +190,7 @@ def workflow(envs, agents, episodes=10000):
             # 上报训练进度
             episode_cnt += 1
             now = time.time()
-            is_converged = win_cnt / (episode + 1) > 0.9 and episode > 2000
+            is_converged = win_cnt / (episode + 1) > 0.9 and episode > 20000
 
             if is_converged or now - last_report_monitor_time > 60:
                 print(f"Episode {episode + 1}: Avg Reward = {current_avg_reward:.4f}, Episode Reward = {episode_reward:.4f}")

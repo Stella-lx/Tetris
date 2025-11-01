@@ -72,12 +72,12 @@ class Config:
 
 
     ### 算法相关配置
-    OBSERVATION_SHAPE =180 # 已改
+    OBSERVATION_SHAPE =181 # 已改
     ACTION_SIZE = 4
-    BATCH_SIZE = 32
+    BATCH_SIZE = 2048 # 已改，原32，后改为不固定
     LEARNING_RATE = 5e-4  # 更改学习率
     EPOCHS = 4
-    GAMMA = 0.99
+    GAMMA = 0.98 # 改,原0.99
     LAMBDA = 0.95
     CLIP_COEF = 0.2
     MAX_GRAD_NORM = 0.5

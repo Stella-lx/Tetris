@@ -43,41 +43,34 @@ class Algorithm:
             action_shape=action_size, 
             hidden_size=Config.HIDDEN_SIZE, 
         ).to(self.device) 
-        self.rnd_model = RNDModel(observation_size, Config.HIDDEN_SIZE).to(device) 
+        # self.rnd_model = RNDModel(observation_size, Config.HIDDEN_SIZE).to(device) 
         self.optimizer = torch.optim.Adam(self.model.parameters(), lr=self.learning_rate, eps=1e-5) 
-        self.rnd_optimizer = torch.optim.Adam(self.rnd_model.parameters(), lr=self.learning_rate)
+        # self.rnd_optimizer = torch.optim.Adam(self.rnd_model.parameters(), lr=self.learning_rate)
 
         # RND相关参数
-        self.rnd_coef = Config.RND_COEF 
-        self.rnd_loss = 0.0 
+        # self.rnd_coef = Config.RND_COEF 
+        # self.rnd_loss = 0.0 
 
-    def compute_intrinsic_reward(self, states):
-        """计算内在奖励"""
-        predicted, target = self.rnd_model(states)
-        intrinsic_reward = F.mse_loss(predicted, target, reduction='none').mean(-1)
-        # self.logger.info(f"intrinsic_reward: {intrinsic_reward.shape}")
-        rnd_reward_value = intrinsic_reward.mean() * self.rnd_coef
-        # print(f"rnd_reward: {rnd_reward_value}")
+    # def compute_intrinsic_reward(self, states):
+    #     """计算内在奖励"""
+    #     predicted, target = self.rnd_model(states)
+    #     intrinsic_reward = F.mse_loss(predicted, target, reduction='none').mean(-1)
+    #     # self.logger.info(f"intrinsic_reward: {intrinsic_reward.shape}")
+    #     rnd_reward_value = intrinsic_reward.mean() * self.rnd_coef
+    #     # print(f"rnd_reward: {rnd_reward_value}")
 
-        # # 如果有可视化器，更新数据
-        # if hasattr(self, 'visualizer') and self.visualizer is not None:
-        #     try:
-        #         self.visualizer.update(float(rnd_reward_value))
-        #     except Exception as e:
-        #         pass  # 忽略可视化错误，不影响训练
-
-        return intrinsic_reward.detach()
+    #     return intrinsic_reward.detach()
         
-    def update_rnd(self, states):
-        """更新RND预测网络"""
-        predicted, target = self.rnd_model(states)
-        loss = F.mse_loss(predicted, target)
+    # def update_rnd(self, states):
+    #     """更新RND预测网络"""
+    #     predicted, target = self.rnd_model(states)
+    #     loss = F.mse_loss(predicted, target)
         
-        self.rnd_optimizer.zero_grad()
-        loss.backward()
-        self.rnd_optimizer.step()
+    #     self.rnd_optimizer.zero_grad()
+    #     loss.backward()
+    #     self.rnd_optimizer.step()
         
-        self.rnd_loss = loss.item()
+    #     # self.rnd_loss = loss.item()
         
     def learn(self, list_sample_data):
         # print(f"训练数据样本数: {len(list_sample_data)}")
@@ -94,16 +87,7 @@ class Algorithm:
 
         returns = torch.tensor(returns, dtype=torch.float32).to(self.device)
         advantages = torch.tensor(advantages, dtype=torch.float32).to(self.device)
-        # advantages = (advantages - advantages.mean()) / (advantages.std() + 1e-8) # 1e-8防止标准差为0，分母为0
-
-        # 优势函数标准化，增加数值稳定性检查
-        if len(advantages) > 1:
-            adv_std = advantages.std()
-            if adv_std > 1e-8:  # 只有当标准差足够大时才进行标准化
-                advantages = (advantages - advantages.mean()) / adv_std
-            else:
-                advantages = advantages - advantages.mean()  # 只进行中心化
-        # 如果只有一个样本，不进行标准化
+        advantages = (advantages - advantages.mean()) / (advantages.std() + 1e-8) # 1e-8防止标准差为0，分母为0
 
         # 训练模型
         dataset_size = len(states)
@@ -122,8 +106,8 @@ class Algorithm:
                 batch_values = old_values[idx]
                 batch_logps_old = logps_old[idx]
 
-                intrinsic_reward = self.compute_intrinsic_reward(batch_states)
-                batch_returns = batch_returns + self.rnd_coef * intrinsic_reward
+                # intrinsic_reward = self.compute_intrinsic_reward(batch_states)
+                # batch_returns = batch_returns + self.rnd_coef * intrinsic_reward
                 # print(f"batch_returns: {batch_returns}")
 
                 logits, values = self.model(batch_states)
@@ -147,33 +131,18 @@ class Algorithm:
                 policy_loss = -torch.min(surr1, surr2).mean()
 
                 # 值函数损失计算
-                # 确保张量形状匹配
-                values_flat = values.squeeze()
-                returns_flat = batch_returns.squeeze()
-
-                # 确保两个张量都是1维的，且形状相同
-                if values_flat.dim() == 0:  # 如果是标量，转换为1维张量
-                    values_flat = values_flat.unsqueeze(0)
-                if returns_flat.dim() == 0:
-                    returns_flat = returns_flat.unsqueeze(0)
-
                 # 裁剪值函数损失（可选）
                 if Config.CLIP_VLOSS:
                     # 计算未裁剪损失
-                    value_loss_unclipped = F.mse_loss(values_flat, returns_flat)
-
+                    value_loss_unclipped = F.mse_loss(values.squeeze(), batch_returns) # F.mse_loss要求输入形状相同，squeeze()：移除张量中所有长度为1的维度，这个是新值函数预测,batch_values：旧值函数预测（收集数据时记录的值）
                     # 创建裁剪值,限制新旧预测的差异，防止值函数突变
-                    batch_values_flat = batch_values.squeeze()
-                    if batch_values_flat.dim() == 0:
-                        batch_values_flat = batch_values_flat.unsqueeze(0)
-
-                    values_clipped = batch_values_flat + torch.clamp(values_flat - batch_values_flat, -self.clip_eps, self.clip_eps)
+                    values_clipped = batch_values + torch.clamp(values.squeeze() - batch_values, -self.clip_eps, self.clip_eps)
                     # 裁剪损失计算
-                    value_loss_clipped = F.mse_loss(values_clipped, returns_flat)
+                    value_loss_clipped = F.mse_loss(values_clipped, batch_returns)
                     value_loss = torch.max(value_loss_unclipped, value_loss_clipped)
                 # 标准值函数损失
                 else:
-                    value_loss = F.mse_loss(values_flat, returns_flat)
+                    value_loss = F.mse_loss(values.squeeze(), batch_returns)
                 loss = policy_loss + Config.VF_COEF * value_loss - 0.01 * entropy.mean()
 
 
@@ -190,7 +159,7 @@ class Algorithm:
                 self.optimizer.step()
 
         # RND模型更新 - 使用最后的批次状态或全部状态
-        self.update_rnd(batch_states)
+        # self.update_rnd(batch_states)
 
         # 训练指标记录 
         self.policy_loss = policy_loss.item()
