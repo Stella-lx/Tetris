@@ -1,0 +1,8 @@
+﻿logs/ppo_tetris_20251028_195711/
+logs/ppo_tetris_20251029_095507/
+logs/ppo_tetris_20251029_173640/
+logs/ppo_tetris_20251031_204232/
+logs/ppo_tetris_20251031_212602/
+log/tetris_20251029.log
+*.log
+logs/**/*.tfevents.*

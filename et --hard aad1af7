@@ -1,0 +1,18 @@
+[33mab89c41[m[33m ([m[1;36mHEAD[m[33m -> [m[1;32mfeature/add-reward-rule-clean[m[33m, [m[1;31morigin/feature/add-tensorboard-logging[m[33m, [m[1;32mmaster[m[33m)[m HEAD@{0}: reset: moving to ab89c417e40d8a4b0952231635c865ca49cce0e9
+[33maad1af7[m HEAD@{1}: checkout: moving from feature/add-reward-rule-clean to feature/add-reward-rule-clean
+[33maad1af7[m HEAD@{2}: commit: 彻底清理大文件，创建干净分支
+[33m8a66fc3[m[33m ([m[1;32mfeature/add-reward-rule[m[33m)[m HEAD@{3}: checkout: moving from feature/add-reward-rule to feature/add-reward-rule-clean
+[33m8a66fc3[m[33m ([m[1;32mfeature/add-reward-rule[m[33m)[m HEAD@{4}: commit: 移除所有大文件并更新.gitignore
+[33m79cbcd2[m HEAD@{5}: commit: 彻底配置 LFS 跟踪所有文件
+[33m2c111d7[m HEAD@{6}: commit: 完善 LFS 跟踪规则
+[33m24d53c1[m HEAD@{7}: commit: 使用 LFS 管理大文件
+[33m75254dc[m[33m ([m[1;32mfeature/add-tensorboard-logging[m[33m)[m HEAD@{8}: checkout: moving from feature/add-tensorboard-logging to feature/add-reward-rule
+[33m75254dc[m[33m ([m[1;32mfeature/add-tensorboard-logging[m[33m)[m HEAD@{9}: commit: 修改奖励规则，改参数
+[33mab89c41[m[33m ([m[1;36mHEAD[m[33m -> [m[1;32mfeature/add-reward-rule-clean[m[33m, [m[1;31morigin/feature/add-tensorboard-logging[m[33m, [m[1;32mmaster[m[33m)[m HEAD@{10}: reset: moving to origin/feature/add-tensorboard-logging
+[33mab89c41[m[33m ([m[1;36mHEAD[m[33m -> [m[1;32mfeature/add-reward-rule-clean[m[33m, [m[1;31morigin/feature/add-tensorboard-logging[m[33m, [m[1;32mmaster[m[33m)[m HEAD@{11}: checkout: moving from feature/add-tensorboard-logging to feature/add-tensorboard-logging
+[33mab89c41[m[33m ([m[1;36mHEAD[m[33m -> [m[1;32mfeature/add-reward-rule-clean[m[33m, [m[1;31morigin/feature/add-tensorboard-logging[m[33m, [m[1;32mmaster[m[33m)[m HEAD@{12}: reset: moving to origin/feature/add-tensorboard-logging
+[33mc8ee0b9[m HEAD@{13}: checkout: moving from feature/add-tensorboard-logging to feature/add-tensorboard-logging
+[33mc8ee0b9[m HEAD@{14}: commit: 删除plot，添加tensorboard
+[33mab89c41[m[33m ([m[1;36mHEAD[m[33m -> [m[1;32mfeature/add-reward-rule-clean[m[33m, [m[1;31morigin/feature/add-tensorboard-logging[m[33m, [m[1;32mmaster[m[33m)[m HEAD@{15}: checkout: moving from master to feature/add-tensorboard-logging
+[33mab89c41[m[33m ([m[1;36mHEAD[m[33m -> [m[1;32mfeature/add-reward-rule-clean[m[33m, [m[1;31morigin/feature/add-tensorboard-logging[m[33m, [m[1;32mmaster[m[33m)[m HEAD@{16}: commit: 修改plot,添加Tensorboard
+[33mfe18c31[m[33m ([m[1;31morigin/master[m[33m)[m HEAD@{17}: commit (initial): 初始提交

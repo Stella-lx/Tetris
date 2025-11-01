@@ -96,7 +96,8 @@ def show_tetris_demo():
             obs_data = agent.observation_process(env, state)
             
             step_count = 0
-            max_steps = 100  # 限制最大步数
+            max_steps = 1000  # 限制最大步数
+            logp_list = []
             
             while step_count < max_steps:
                 # 智能体预测动作
@@ -116,9 +117,10 @@ def show_tetris_demo():
                 action_names = ["左移", "右移", "下移", "旋转"]
                 action_name = action_names[action] if action < 4 else f"动作{action}"
 
-                print(f"步骤: {step_count:3d} | 动作: {action_name:4s} | 得分: {env.score:4d}")
 
 
+                print(f"步骤: {step_count:3d} | 动作: {action_name:4s} | 得分: {env.score:4d} | 概率分布：{logp}")
+                logp_list.append(logp)
                 # 控制显示速度
                 time.sleep(0.1)
                 
@@ -129,6 +131,8 @@ def show_tetris_demo():
                     print(f"   总步数: {step_count}")
                     print(f"   消除行数: {env.cleans}")
                     break
+
+            print(logp_list)
             
             if step_count >= max_steps:
                 print(f"\n 达到最大步数限制 ({max_steps})")

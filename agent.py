@@ -44,6 +44,7 @@ class Agent():
         with torch.no_grad():
             logits, value = self.algorithm.model(observation_tensor)  # 假设 model 返回 (logits, value)
 
+            # print(f"predict logits: {torch.softmax(logits,-1)}")
             # 构建动作分布
             dist = torch.distributions.Categorical(logits=logits)
             action = dist.sample()
@@ -72,6 +73,7 @@ class Agent():
         [162: 168]: 下一个方块类型
         [169: 175]: 当前方块类型
         [176: 179]: 当前方块旋转类型
+        [180: 180]: 当前方块当前步是否是强制下落
         """
 
         # 特征#1: 全局状态,16*10维
@@ -80,23 +82,12 @@ class Agent():
         global_state = array_state.flatten()
         normalized_global_state = (global_state / 8.0).astype(np.float32)
 
-        # pos = [env.x, env.y]
-        # # Feature #2: Current state of the agent (1-dimensional representation)
-        # # 特征#2: 智能体当前 state (1维表示)
-        # state = [int(pos[0] * 16 + pos[1] + 1) / (16 * 10)]  # Normalized position in the grid
-        # # Feature #3: One-hot encoding of the agent's current position
-        # # 特征#3: 智能体当前位置信息的 one-hot 编码
-        # pos_row = [0] * 10
-        # pos_row[pos[0]] = 1
-        # pos_col = [0] * 16
-        # pos_col[pos[1]] = 1
-
         # 特征#2: 智能体当前横坐标归一化
-        normalized_x = [env.x / env.width]
+        normalized_x = [env.x / (env.width - 1)]
         # print(f'env.x',env.x)
 
         # 特征#3: 智能体当前纵坐标归一化
-        normalized_y = [env.y / (env.height + 4)]
+        normalized_y = [env.y / (env.height + 4 - 1)]
 
         # 特征#4: 下一个方块类型
         next_block_type = [1 if i == env.next_block_index else 0 for i in range(7)]
@@ -107,6 +98,9 @@ class Agent():
 
         # 特征#6: 当前方块旋转类型
         current_rotation_state = [1 if i == env.rotation else 0 for i in range(4)]
+
+        # 特征#7: 当前方块当前步是否是强制下落
+        is_hard_drop = [1] if env.hard_drop else [0]
         
         # 多个特征向量​​水平拼接，180维
         feature = np.concatenate(
@@ -117,6 +111,7 @@ class Agent():
                 next_block_type, # 7维
                 current_block_type, # 7维
                 current_rotation_state, # 4维
+                is_hard_drop, # 1维
             ]
         ) 
         # print(feature.shape)

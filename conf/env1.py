@@ -2,6 +2,7 @@ import random
 import keyboard
 import os
 import time
+import pygame
 
 """
 写俄罗斯方块PPO强化学习环境python代码
@@ -53,18 +54,41 @@ class Env:
             ] #"S"
         }
 
+        # Pygame初始化（新增）
+        pygame.init()
+        self.block_size = 30  # 每个方块的像素大小
+        self.screen_width = self.width * self.block_size
+        self.screen_height = self.secene_row * self.block_size
+        self.screen = pygame.display.set_mode((self.screen_width, self.screen_height))
+        pygame.display.set_caption("俄罗斯方块 PPO环境")
+        self.clock = pygame.time.Clock()  # 控制帧率
+
+        # 方块颜色映射（新增，对应不同形状的方块）
+        self.colors = [
+            (0, 0, 0),          # 0: 空白
+            (255, 255, 255),    # 1: 活动方块（白色）
+            (255, 0, 0),        # 2: Z形（红色）
+            (0, 255, 0),        # 3: I形（绿色）
+            (0, 0, 255),        # 4: O形（蓝色）
+            (255, 255, 0),      # 5: T形（黄色）
+            (255, 0, 255),      # 6: J形（紫色）
+            (0, 255, 255),      # 7: L形（青色）
+            (128, 0, 128)       # 8: S形（深紫）
+        ]
+
     def step(self, action):
         # action[0]左，change[1]右，change[2]旋转，change[3]下落
-        # action =self.key_control()
+        # action = self.key_control()
         action_list = [0, 0, 0, 0]
-        # 改规则，加步数惩罚
-        if self.one_step >= 9:
-            action = 3
-            self.hard_drop = True
-            self.one_step = 0
-        else:
-            self.hard_drop = False
-            self.one_step += 1
+        # 改规则
+        if action != None:
+            if self.one_step >= 9:
+                action = 3
+                self.hard_drop = True
+                self.one_step = 0
+            else:
+                self.hard_drop = False
+                self.one_step += 1
 
         if action == 0:
             action_list = [1, 0, 0, 0]
@@ -77,7 +101,7 @@ class Env:
         clean_line, nextstate = self.clean_lines(self.state)
         self.cleans = clean_line
         next_state = self.get_next_state(action_list)
-        
+
         # 环境基础奖励
         reward = 0
 
@@ -116,7 +140,6 @@ class Env:
 
     
     def reset(self):
-        # random.seed(6)
         self.next_block_index = random.randint(0, 6)
         # self.next_block_index = 1
         self.rotation = 0
@@ -139,16 +162,25 @@ class Env:
         return self.state
 
     def render(self, state):
-        os.system('cls')
-        print("--------------------")
-        for i in range(self.secene_row):
-            for j in range(self.width):
-                if state[i][j] == 0:
-                    print("..", end="")
-                else:
-                    print("##", end="")
-            print()
-        print("--------------------")
+        # 填充背景为黑色
+        self.screen.fill((0, 0, 0))
+
+        # 绘制每个方块
+        for row in range(self.secene_row):
+            for col in range(self.width):
+                # 获取方块值（0-8）
+                block_value = state[row][col]
+                # 计算像素位置
+                x = col * self.block_size
+                y = row * self.block_size
+                # 绘制方块（带边框）
+                rect = pygame.Rect(x, y, self.block_size - 1, self.block_size - 1)  # -1留边框间隙
+                pygame.draw.rect(self.screen, self.colors[block_value], rect)
+
+        # 更新显示
+        pygame.display.flip()
+        # 控制帧率（可选，避免过快）
+        self.clock.tick(10)  # 10FPS，可调整
     
     
     def block_in_secene(self, x, y):
@@ -287,19 +319,25 @@ class Env:
         #     return False 
     
     """键盘控制动作"""
+
     def key_control(self):
-        action = [0, 0, 0, 0]
-        # ←键a或是左，→键或d是右，↓键或s是下，↑或w是旋转，空格是下落
-        if keyboard.is_pressed('left') or keyboard.is_pressed('a'):
-            action[0] = 1  # 左移
-        elif keyboard.is_pressed('right') or keyboard.is_pressed('d'):
-            action[1] = 1  # 右移
-        elif keyboard.is_pressed('up') or keyboard.is_pressed('w'):
-            action[2] = 1  # 旋转
-        elif keyboard.is_pressed('space') or keyboard.is_pressed('s') or keyboard.is_pressed('down'):
-            action[3] = 1  # 硬下落
-        
-        return action
+        while True:
+            for event in pygame.event.get():
+                if event.type == pygame.QUIT:
+                    # 退出游戏
+                    pygame.quit()
+                    exit()
+                # 键盘按键（对应原key_control逻辑）
+                if event.type == pygame.KEYDOWN:
+                    if event.key == pygame.K_LEFT or event.key == pygame.K_a:
+                        return 0  # 左移
+                    elif event.key == pygame.K_RIGHT or event.key == pygame.K_d:
+                        return 1  # 右移
+                    elif event.key == pygame.K_UP or event.key == pygame.K_w:
+                        return 2  # 旋转
+                    elif event.key == pygame.K_SPACE or event.key == pygame.K_s or event.key == pygame.K_DOWN:
+                        return 3  # 下落
+            return None  # 无操作
 
 
     """判断移动是否有效""" #
